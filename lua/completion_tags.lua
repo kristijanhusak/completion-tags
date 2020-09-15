@@ -45,6 +45,15 @@ local populateItems = function (tagfileLines)
       end
     end
   end
+
+  for name, paths in pairs(items) do
+    local p = paths
+    if #paths > 10 then
+      p = {unpack(paths, 1, 10)}
+      table.insert(p, '... and '..(#paths - 10)..' more')
+    end
+    items[name] = table.concat(p, '\n')
+  end
   return items
 end
 
@@ -84,11 +93,7 @@ local getCompletionItems = function(prefix)
   end
 
   for word, paths in pairs(items) do
-    if prefix:sub(1, 1):lower() == word:sub(1,1):lower() then
-      local hover = {unpack(paths, 1, 10)}
-      if #paths > 10 then
-        table.insert(hover, '... and '..(#paths - 10)..' more')
-      end
+    if vim.startswith(word:lower(), prefix:lower()) then
       match.matching(complete_items, prefix, {
           word = word,
           abbr = word,
@@ -96,7 +101,7 @@ local getCompletionItems = function(prefix)
           empty = 0,
           icase = 1,
           menu = '[T]',
-          user_data = vim.fn.json_encode({ hover = table.concat(hover, '\n') })
+          user_data = vim.fn.json_encode({ hover = paths })
         })
     end
   end
