@@ -75,13 +75,16 @@ end
 local getCompletionItems = function(prefix)
   local items = {}
   local complete_items = {}
+  if prefix == '' then
+    return complete_items
+  end
   local tagfiles = getTagfiles()
   for _, tagfile in ipairs(tagfiles) do
     items = vim.tbl_extend('force', items, getTagfileItems(tagfile))
   end
 
   for word, paths in pairs(items) do
-    if prefix == '' or prefix:sub(1, 1):lower() == word:sub(1,1):lower() then
+    if prefix:sub(1, 1):lower() == word:sub(1,1):lower() then
       local hover = {unpack(paths, 1, 10)}
       if #paths > 10 then
         table.insert(hover, '... and '..(#paths - 10)..' more')
