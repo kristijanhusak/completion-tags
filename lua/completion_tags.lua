@@ -37,10 +37,14 @@ local populateItems = function (tagfileLines)
     if not line:match('^!') then
       local line_parts = splitLine(line)
       if #line_parts >= 2 then
-        if items[line_parts[1]] ~= nil then
-          table.insert(items[line_parts[1]], line_parts[2])
+        local name = line_parts[1]
+        local path = line_parts[2]
+        if items[name] ~= nil then
+          if not vim.tbl_contains(items[name], path) then
+            table.insert(items[name], path)
+          end
         else
-          items[line_parts[1]] = {line_parts[2]}
+          items[name] = {path}
         end
       end
     end
