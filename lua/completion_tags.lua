@@ -66,21 +66,21 @@ local getTagfileItems = function(tagfile)
   if cache_item ~= nil and cache_item.mtime >= tagfile.mtime then
     return cache_item.items
   end
-  luv.fs_open(tagfile.file, 'r', 438, function(err, fd)
+  luv.fs_open(tagfile.file, 'r', 438, vim.schedule_wrap(function(err, fd)
     if err then return end
-    luv.fs_fstat(fd, function(err, stat)
-      if err then return end
-      luv.fs_read(fd, stat.size, 0, function(err, data)
-        if err then return end
+    luv.fs_fstat(fd, vim.schedule_wrap(function(er, stat)
+      if er then return end
+      luv.fs_read(fd, stat.size, 0, vim.schedule_wrap(function(e, data)
+        if e then return end
         cache[tagfile.file] = {
           items = populateItems(data:gmatch('[^\r\n]+')),
           mtime = stat.mtime.sec
         }
 
         luv.fs_close(fd)
-      end)
-    end)
-  end)
+      end))
+    end))
+  end))
 
   return {}
 end
@@ -117,8 +117,8 @@ function M.add_sources()
   completion.addCompletionSource('tags', { item = getCompletionItems });
   -- Cache on init
   local tagfiles = getTagfiles()
-  for _, tagfile in ipairs(tagfiles) do
-    getTagfileItems(tagfile)
+  for i, tagfile in ipairs(tagfiles) do
+    vim.defer_fn(function() getTagfileItems(tagfile) end, i * 200)
   end
 end
 
