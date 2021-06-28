@@ -25,8 +25,29 @@ end
 
 local splitLine = function (line)
   local entries = {}
+  local is_context = false
+  local context = ""
+  local cstart = 1
+  local cend = -1
   for item in line:gmatch('[^%s\t]+') do
-    table.insert(entries, item)
+    if item:sub(1, 2) == '/^' then
+        is_context = true
+        cstart = 3
+    else
+        cstart = 1
+    end
+    if item:sub(-3) == '/;"' then
+        is_context = false
+        if cstart == 1 then
+            context = context .. ' ' .. item:sub(cstart, -5)
+        end
+        item = context
+    end
+    if not is_context then
+        table.insert(entries, item)
+    else
+        context = context .. ' ' .. item:sub(cstart, cend)
+    end
   end
   return entries
 end
@@ -39,12 +60,19 @@ local populateItems = function (tagfileLines)
       if #line_parts >= 2 then
         local name = line_parts[1]
         local path = line_parts[2]
+        local context = line_parts[3]
+        local tagtype = line_parts[4]
+
+        local taginfo = path
+        if tagtype ~= nil then
+            taginfo = path .. ' ' .. tagtype .. '\n' .. context
+        end
         if items[name] ~= nil then
-          if not vim.tbl_contains(items[name], path) then
-            table.insert(items[name], path)
+          if not vim.tbl_contains(items[name], taginfo) then
+            table.insert(items[name], taginfo)
           end
         else
-          items[name] = {path}
+          items[name] = {taginfo}
         end
       end
     end
