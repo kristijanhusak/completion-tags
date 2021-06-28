@@ -3,7 +3,7 @@ Tags autocompletion source for [completion-nvim](https://github.com/nvim-lua/com
 
 It works almost the same as built-in `tags` completion, with additional floating window that contains paths where tag is pulled from.
 
-![screenshot](https://i.imgur.com/cDMdWhq.png)
+![screenshot](https://user-images.githubusercontent.com/22996003/123677081-faadc500-d844-11eb-968c-14f3cee9351c.png)
 
 ## Installation
 
