@@ -53,7 +53,8 @@ local splitLine = function (line)
 end
 
 local populateItems = function (tagfileLines)
-  local items = {}
+  local items_p = {}
+  local items_i = {}
   for line in tagfileLines do
     if not line:match('^!') then
       local line_parts = splitLine(line)
@@ -63,36 +64,49 @@ local populateItems = function (tagfileLines)
         local context = line_parts[3]
         local tagtype = line_parts[4]
 
-        local taginfo = path
+        local taginfo = '[T]'
         if tagtype ~= nil then
-            taginfo = path .. ' ' .. tagtype .. '\n' .. context
+            taginfo = tagtype .. ' ' .. taginfo
         end
-        if items[name] ~= nil then
-          if not vim.tbl_contains(items[name], taginfo) then
-            table.insert(items[name], taginfo)
+        if context ~= nil then
+            path = path .. '\n' .. context
+        end
+        if items_p[name] ~= nil then
+          if not vim.tbl_contains(items_p[name], path) then
+            table.insert(items_p[name], path)
+            table.insert(items_i[name], taginfo)
           end
         else
-          items[name] = {taginfo}
+          items_p[name] = {path}
+          items_i[name] = {taginfo}
         end
       end
     end
   end
 
-  for name, paths in pairs(items) do
+  for name, paths in pairs(items_p) do
     local p = paths
     if #paths > 10 then
       p = {unpack(paths, 1, 10)}
       table.insert(p, '... and '..(#paths - 10)..' more')
     end
-    items[name] = table.concat(p, '\n')
+    items_p[name] = table.concat(p, '\n')
   end
-  return items
+  for name, info in pairs(items_i) do
+    if #info > 1 then
+        items_i[name] = '[T]'
+        -- items_i[name] = items_i[name] .. table.concat(info, '\n')
+    else
+        items_i[name] = unpack(info)
+    end
+  end
+  return items_p, items_i
 end
 
 local getTagfileItems = function(tagfile)
   local cache_item = cache[tagfile.file]
   if cache_item ~= nil and cache_item.mtime >= tagfile.mtime then
-    return cache_item.items
+    return cache_item.items_p, cache_item.items_i
   end
   luv.fs_open(tagfile.file, 'r', 438, vim.schedule_wrap(function(err, fd)
     if err then return end
@@ -100,8 +114,10 @@ local getTagfileItems = function(tagfile)
       if er then return end
       luv.fs_read(fd, stat.size, 0, vim.schedule_wrap(function(e, data)
         if e then return end
+        items_p, items_i = populateItems(data:gmatch('[^\r\n]+'))
         cache[tagfile.file] = {
-          items = populateItems(data:gmatch('[^\r\n]+')),
+          items_p = items_p,
+          items_i = items_i,
           mtime = stat.mtime.sec
         }
 
@@ -114,17 +130,20 @@ local getTagfileItems = function(tagfile)
 end
 
 local getCompletionItems = function(prefix)
-  local items = {}
+  local items_p = {}
+  local items_i = {}
   local complete_items = {}
   if prefix == '' then
     return complete_items
   end
   local tagfiles = getTagfiles()
   for _, tagfile in ipairs(tagfiles) do
-    items = vim.tbl_extend('force', items, getTagfileItems(tagfile))
+    new_items_p, new_items_i = getTagfileItems(tagfile)
+    items_p = vim.tbl_extend('force', items_p, new_items_p)
+    items_i = vim.tbl_extend('force', items_i, new_items_i)
   end
 
-  for word, paths in pairs(items) do
+  for word, paths in pairs(items_p) do
     if vim.startswith(word:lower(), prefix:lower()) then
       match.matching(complete_items, prefix, {
           word = word,
@@ -132,7 +151,7 @@ local getCompletionItems = function(prefix)
           dup = 0,
           empty = 0,
           icase = 1,
-          menu = '[T]',
+          menu = items_i[word],
           user_data = vim.fn.json_encode({ hover = paths })
         })
     end
